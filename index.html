@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abbey College Malvern | Library Catalogue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+
+<body>
+    <header class="main-header">
+        <div class="container container-flex">
+            <div class="logo-container">
+                <img src="logo.png" alt="Abbey College Malvern Logo" class="college-logo">
+            </div>
+            <div class="header-text">
+                <h1>Library Catalogue</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="search-section">
+            <div class="search-bar-container">
+                <input type="text" id="searchInput" placeholder="Search by Title, Author, or Code..."
+                    autocomplete="off">
+                <span class="search-icon">🔍</span>
+            </div>
+            <div class="filters-container">
+                <select id="subjectFilter">
+                    <option value="">All Subjects</option>
+                    <!-- Populated dynamically -->
+                </select>
+                <select id="sortOrder">
+                    <option value="relevance">Sort by Relevance</option>
+                    <option value="title-asc">Title (A-Z)</option>
+                    <option value="author-asc">Author (A-Z)</option>
+                    <option value="dewey-asc">Dewey Decimal (0-9)</option>
+                    <option value="date-desc">Newest First</option>
+                </select>
+                <select id="pageSize">
+                    <option value="25">25 per page</option>
+                    <option value="50" selected>50 per page</option>
+                    <option value="100">100 per page</option>
+                    <option value="all">Show All</option>
+                </select>
+            </div>
+        </section>
+
+        <section class="info-bar">
+            <div id="statusMessage">Loading catalogue...</div>
+            <div id="resultsCount"></div>
+        </section>
+
+        <section id="resultsGrid" class="results-grid">
+            <!-- Book cards will be injected here -->
+        </section>
+
+        <div class="pagination">
+            <button id="loadMoreBtn" class="hidden">Load More Books</button>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <p>&copy; 2024 Abbey College Malvern. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
