@@ -4,7 +4,7 @@
  */
 
 const CSV_FILE = 'libstock.csv';
-let itemsPerPage = 50;
+let itemsPerPage = 24;
 
 let libraryData = [];
 let filteredResults = [];
@@ -17,15 +17,23 @@ const resultsGrid = document.getElementById('resultsGrid');
 const loadMoreBtn = document.getElementById('loadMoreBtn');
 const statusMessage = document.getElementById('statusMessage');
 const resultsCount = document.getElementById('resultsCount');
-const pageSizeSelect = document.getElementById('pageSize');
 
 // Dewey Explorer Elements
 const deweyActiveSelect = document.getElementById('deweyActive');
 const deweyBreadcrumbNav = document.getElementById('deweyBreadcrumb');
 const resetDeweyBtn = document.getElementById('resetDewey');
 
-let deweyData = {};
+let deweyData = [];
 let currentDeweyPath = []; // Array of {id, name}
+let deweyMap = new Map();
+
+function buildDeweyMap(nodes) {
+    if (!nodes) return;
+    nodes.forEach(node => {
+        deweyMap.set(node.number, node.name);
+        if (node.children) buildDeweyMap(node.children);
+    });
+}
 
 /**
  * Initialize the catalogue
@@ -39,7 +47,9 @@ async function init() {
             .then(res => res.json())
             .then(data => {
                 deweyData = data;
+                buildDeweyMap(deweyData);
                 renderDeweyExplorer(); // Populate dropdown when loaded
+                renderResults(); // Re-render results to display category names
             })
             .catch(err => console.error('Error fetching Dewey data:', err));
 
@@ -58,6 +68,7 @@ async function init() {
                             subject: item.subject,
                             publisher: item.publisher,
                             'publication Date': item['publication Date'] || item.pub_date,
+                            notes: item.notes || ''
                         };
                     });
                     filteredResults = [...libraryData];
@@ -241,15 +252,36 @@ function createBookCard(book, index) {
     const title = book.title || 'Untitled';
     const author = book.author || 'Unknown Author';
     const code = book.code || '';
-    const subject = book.subject || 'General';
     const publisher = book.publisher || '';
     const pubDate = book['publication Date'] || book.pub_date || '';
+    const notes = book.notes || '';
+
+    // Calculate the 3-digit Dewey Category Name
+    let categoryName = 'Uncategorized';
+    if (book.deweyNum !== null && deweyMap.size > 0) {
+        const intPart = Math.floor(book.deweyNum);
+        const deweyKey = intPart.toString().padStart(3, '0');
+        if (deweyMap.has(deweyKey)) {
+            categoryName = `${deweyKey} - ${deweyMap.get(deweyKey)}`;
+        } else {
+            const divKey = (Math.floor(intPart / 10) * 10).toString().padStart(3, '0');
+            if (deweyMap.has(divKey)) {
+                categoryName = `${divKey} - ${deweyMap.get(divKey)}`;
+            } else {
+                const classKey = (Math.floor(intPart / 100) * 100).toString().padStart(3, '0');
+                categoryName = deweyMap.has(classKey) ? `${classKey} - ${deweyMap.get(classKey)}` : 'Unknown Category';
+            }
+        }
+    } else if (book.deweyNum !== null) {
+        categoryName = 'Loading...';
+    }
 
     div.innerHTML = `
         ${code ? `<span class="book-shelf-code">${code}</span>` : ''}
         <h3 class="book-title">${title}</h3>
         <p class="book-author">by ${author}</p>
-        <span class="book-subject-badge">${subject.split('/')[0]}</span>
+        <span class="book-subject-badge">${categoryName}</span>
+        ${notes ? `<p class="book-notes"><strong>Notes:</strong> ${notes}</p>` : ''}
         <div class="book-meta">
             ${publisher ? `<span>${publisher}</span>` : ''}
             ${pubDate ? `<span> | ${pubDate}</span>` : ''}
@@ -271,7 +303,8 @@ function applyFilters() {
         const matchesSearch = !query ||
             (item.title && item.title.toLowerCase().includes(query)) ||
             (item.author && item.author.toLowerCase().includes(query)) ||
-            (item.code && item.code.toLowerCase().includes(query));
+            (item.code && item.code.toLowerCase().includes(query)) ||
+            (item.notes && item.notes.toLowerCase().includes(query));
 
         // Dewey Decimal Filter
         let matchesDewey = true;
@@ -317,12 +350,6 @@ function applyFilters() {
  */
 searchInput.addEventListener('input', debounce(applyFilters, 300));
 sortOrder.addEventListener('change', applyFilters);
-
-pageSizeSelect.addEventListener('change', () => {
-    const val = pageSizeSelect.value;
-    itemsPerPage = val === 'all' ? 'all' : parseInt(val);
-    renderResults();
-});
 
 loadMoreBtn.addEventListener('click', () => {
     currentPage++;
