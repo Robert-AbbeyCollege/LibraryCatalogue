@@ -3,7 +3,7 @@
  * Logic for fetching, parsing, and searching the library stock.
  */
 
-const CSV_FILE = 'libstock.csv';
+const EXCEL_FILE = 'library.xlsx';
 let itemsPerPage = 24;
 
 let libraryData = [];
@@ -53,22 +53,36 @@ async function init() {
             })
             .catch(err => console.error('Error fetching Dewey data:', err));
 
-        Papa.parse(CSV_FILE, {
-            download: true,
-            header: true,
-            skipEmptyLines: true,
-            complete: function (results) {
-                if (results.data && results.data.length > 0) {
-                    libraryData = results.data.map(item => {
+        // Fetch Excel data
+        fetch(EXCEL_FILE)
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to fetch Excel file");
+                return res.arrayBuffer();
+            })
+            .then(data => {
+                const workbook = XLSX.read(data, { type: 'array' });
+                // Look for a sheet named 'library' (case-insensitive), fallback to first sheet
+                const sheetName = workbook.SheetNames.find(s => s.toLowerCase() === 'library') || workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                if (rows && rows.length > 0) {
+                    libraryData = rows.map(item => {
+                        // Normalize keys to lowercase to avoid case-sensitivity issues
+                        const normalizedItem = {};
+                        for (const key in item) {
+                            normalizedItem[key.toLowerCase().trim()] = item[key];
+                        }
+
                         return {
-                            code: item.code,
-                            deweyNum: getDeweyNumber(item.code),
-                            title: item.title,
-                            author: item.author,
-                            subject: item.subject,
-                            publisher: item.publisher,
-                            'publication Date': item['publication Date'] || item.pub_date,
-                            notes: item.notes || ''
+                            code: normalizedItem.code,
+                            deweyNum: getDeweyNumber(normalizedItem.code),
+                            title: normalizedItem.title,
+                            author: normalizedItem.author,
+                            subject: normalizedItem['subject 1'] || normalizedItem.subject,
+                            publisher: normalizedItem.publisher,
+                            'publication Date': normalizedItem['publication date'] || normalizedItem.pub_date,
+                            notes: normalizedItem.notes || ''
                         };
                     });
                     filteredResults = [...libraryData];
@@ -76,14 +90,13 @@ async function init() {
                     renderResults();
                     updateStatus(`Successfully loaded ${libraryData.length} records.`, false);
                 } else {
-                    updateStatus('Error: No data found in CSV file.', true);
+                    updateStatus('Error: No data found in Excel file.', true);
                 }
-            },
-            error: function (err) {
-                updateStatus('Error loading CSV file. Ensure you are running through a local server.', true);
-                console.error('PapaParse error:', err);
-            }
-        });
+            })
+            .catch(err => {
+                updateStatus('Error loading Excel file. Ensure you are running through a local server.', true);
+                console.error('Excel load error:', err);
+            });
     } catch (error) {
         updateStatus('An unexpected error occurred.', true);
         console.error('Init error:', error);
